@@ -2,6 +2,7 @@ package geecache
 
 import (
 	"fmt"
+	"geecache/singleflight"
 	"log"
 	"sync"
 )
@@ -12,6 +13,8 @@ type Group struct {
 	getter Getter
 
 	peers PeerPicker
+
+	singleFlight  *singleflight.Group
 }
 
 var mu sync.RWMutex
@@ -29,7 +32,7 @@ func NewGroup(name string, cacheBytes int64, getter Getter) *Group {
 		name: name,
 		mainCache: cache{cacheBytes: cacheBytes},
 		getter: getter,
-
+		singleFlight: singleflight.NewGroup(),
 	}
 	groups[name] = Group
 	return Group
@@ -79,11 +82,14 @@ func (g *Group) Get(key string) (ByteView, error) {
 
 func (g *Group) load(key string) (value ByteView, err error) {
 	// 看看我们有没有装备对讲机 (调度中心)
-	if g.peers != nil {
+
+	v, err := g.singleFlight.Do(key, func() (interface{}, error) {
+		if g.peers != nil {
 		// 问调度中心，这个 key 归哪个兄弟管？
 		if peer, ok := g.peers.PickPeer(key); ok {
 			// 归兄弟管！去兄弟那里拿！
-			if value, err = g.getFromPeer(peer, key); err == nil {
+			
+			if value, err := g.getFromPeer(peer, key); err == nil {
 				log.Printf("[GeeCache] 从远端节点获取 %s 成功", key)
 				return value, nil
 			}
@@ -91,8 +97,14 @@ func (g *Group) load(key string) (value ByteView, err error) {
 			log.Println("[GeeCache] Failed to get from peer", err)
 		}
 	}
-	// 如果没装对讲机，或者算出来归自己管，或者兄弟挂了，只能自己去本地查底层数据库
-	return g.getLocally(key)
+		return  g.getLocally(key)
+	})
+
+	if err == nil{
+		byteView := v.(ByteView)
+		return byteView, nil
+	}
+	return 
 }
 
 
