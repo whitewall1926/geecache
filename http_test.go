@@ -48,7 +48,7 @@ func TestHTTPPool_ServeHTTP(t *testing.T) {
     // 录音机 w 的 Body 字段记录了写入的数据流，可以使用 w.Body.Bytes() 取出 []byte。
     // 将它转成 string 后，判断是否等于 "630"，如果不等于，用 t.Fatalf 报错。
 	bytes := w.Body.Bytes()
-	str :=string(bytes)
+	str := string(bytes)
 	if str != "630" {
 		t.Fatalf("期望命中 Tom=630，获得一个错误的值Tom=%v", str)
 	}

@@ -5,10 +5,15 @@ type ByteView struct {
 	b []byte
 }
 
-type Getter interface{
+type Getter interface {
 	Get(key string) ([]byte, error) 
 }
 
+type GetterFunc func(key string) ([]byte, error)
+
+func (f GetterFunc) Get(key string) ([]byte, error) {
+	return f(key)
+}
 func (v ByteView) Len() int {
 	return len(v.b)
 }

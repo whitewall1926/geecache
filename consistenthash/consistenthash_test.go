@@ -16,7 +16,7 @@ func TestHashing(t *testing.T) {
 
 	// 初始化一致性哈希环，replicas (虚拟节点倍数) 设为 1 方便测试
 	hash := New(1, mockHash)
-	
+
 	// 对应你的预设：入列 2, 4, 6
 	hash.Add("6", "4", "2")
 
@@ -35,7 +35,7 @@ func TestHashing(t *testing.T) {
 
 	// 场景 4：动态扩容，增加节点 "8"
 	hash.Add("8")
-	
+
 	// 此时查询 "7"，期望目标从 "2" 变成了新机器 "8"
 	if hash.Get("7") != "8" {
 		t.Errorf("动态扩容测试失败：查询 7 期望命中 8，实际命中 %s", hash.Get("7"))
