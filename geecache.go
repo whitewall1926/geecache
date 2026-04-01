@@ -45,6 +45,7 @@ func (g * Group) RegisterPeers(peers PeerPicker) {
 	g.peers = peers
 }
 
+
 func (g *Group) getFromPeer(peer PeerGetter, key string) (ByteView, error) {
     // 调用 httpGetter.Get() 发起网络请求
 	bytes, err := peer.Get(g.name, key)
@@ -79,6 +80,7 @@ func (g *Group) Get(key string) (ByteView, error) {
 	}
 	return g.load(key)
 }
+
 
 func (g *Group) load(key string) (value ByteView, err error) {
 	// 看看我们有没有装备对讲机 (调度中心)

@@ -3,12 +3,15 @@ package geecache
 import (
 	"fmt"
 	"geecache/consistenthash"
+	"geecache/geecachepb"
 	"io"
 	"log"
 	"net/http"
-	"net/url"
+	"bytes"
 	"strings"
 	"sync"
+
+	"google.golang.org/protobuf/proto"
 )
 
 type HTTPPool struct {
@@ -63,27 +66,28 @@ func (p *HTTPPool) PickPeer(key string) (PeerGetter, bool) {
 }
 
 func (p *httpGetter) Get(group string, key string) ([]byte, error) {
-	path := fmt.Sprintf(
-		"%v%v/%v",
-		p.baseURL,
-		url.QueryEscape(group),
-		url.QueryEscape(key),
-	)
-
-	resp, err := http.Get(path)
+	req := geecachepb.Request {
+		Group: group,
+		Key: key,
+	}
+	marsh_req, _ := proto.Marshal(&req)
+	path := p.baseURL
+	resp, err := http.Post(path, "byte", bytes.NewReader(marsh_req))
+	
+	
 	if err != nil {
 		return nil, err
 	}
-	
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("server returned: %v", resp.Status)
 	}
-	
 	bytes, err := io.ReadAll(resp.Body)
 
-	return bytes, err
+	var respMsg geecachepb.Response
+	proto.Unmarshal(bytes, &respMsg)
+	return respMsg.GetValue(), nil
 }
 
 func (p *HTTPPool) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -91,13 +95,13 @@ func (p *HTTPPool) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		panic("HTTPPool serving unexpected path: " + r.URL.Path)
 	}
-	group_key := r.URL.Path[len(p.basePath):]
-	parts := strings.SplitN(group_key, "/", 2)
-	if len(parts) != 2 {
-		http.Error(w, "bad request", http.StatusBadRequest)
-		return
-	}
-	groupName, key := parts[0], parts[1]
+	bytes , err := io.ReadAll(r.Body)
+	var reqMsg geecachepb.Request
+	proto.Unmarshal(bytes, &reqMsg)
+
+
+	groupName, key := reqMsg.GetGroup(), reqMsg.GetKey()
+
 
 	group := GetGroup(groupName)
 	if group == nil {
@@ -110,5 +114,10 @@ func (p *HTTPPool) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.Header().Set("Content-Type", "application/octet-stream")
-	w.Write(view.ByteSlice())
+
+	var valueMsg geecachepb.Response
+	valueMsg.Value = view.ByteSlice()
+	
+	marshValue, _ := proto.Marshal(&valueMsg)
+	w.Write(marshValue)
 }
