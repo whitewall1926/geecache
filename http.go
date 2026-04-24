@@ -19,7 +19,7 @@ type HTTPPool struct {
 	basePath    string
 	mu          sync.Mutex
 	peers       *consistenthash.Map
-	httpGetters map[string]*httpGetter
+	peerGetters map[string]PeerGetter
 }
 
 type httpGetter struct {
@@ -43,10 +43,10 @@ func (p *HTTPPool) Set(peers ...string) {
 	p.peers = consistenthash.New(50, nil)
 
 	p.peers.Add(peers...)
-	p.httpGetters = make(map[string]*httpGetter)
+	p.peerGetters = make(map[string]PeerGetter)
 
 	for _, v := range peers {
-		p.httpGetters[v] = &httpGetter{
+		p.peerGetters[v] = &httpGetter{
 			baseURL: fmt.Sprintf("%v%v", v, p.basePath),
 		}
 	}
@@ -58,14 +58,14 @@ func (p *HTTPPool) PickPeer(key string) (PeerGetter, bool) {
 
 	// 第一步：问大脑（哈希环），这个 key 归哪台机器管？
 	if peer := p.peers.Get(key); peer != "" && peer != p.self {
-		// 第二步：算出机器名（peer）后，再去通讯录（httpGetters）里查！
+		// 第二步：算出机器名（peer）后，再去通讯录（peerGetters）里查！
 		p.Log("Pick peer %s", peer) // 可选日志
-		return p.httpGetters[peer], true
+		return p.peerGetters[peer], true
 	}
 	return nil, false
 }
 
-func (p *httpGetter) Get(group string, key string) ([]byte, error) {
+func (p *httpGetter) Get (group string, key string) ([]byte, error) {
 	req := geecachepb.Request {
 		Group: group,
 		Key: key,

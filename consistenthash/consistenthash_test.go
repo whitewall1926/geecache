@@ -1,6 +1,7 @@
 package consistenthash
 
 import (
+	"fmt"
 	"math"
 	"strconv"
 	"testing"
@@ -74,5 +75,55 @@ func TestGet_ExtremeBoundaryWrapAround(t *testing.T) {
 
 	if got := hash.Get("aboveHigh"); got != "low" {
 		t.Fatalf("aboveHigh 回绕错误：期望 low，实际 %s", got)
+	}
+}
+
+func TestDistributionWithReplicas(t *testing.T) {
+	nodes := []string{"nodeA", "nodeB", "nodeC", "nodeD"}
+	const totalKeys = 10000
+	countFor := func(replicas int) map[string]int {
+		hash := New(replicas, nil)
+		hash.Add(nodes...)
+
+		counts := make(map[string]int, len(nodes))
+		for _, node := range nodes {
+			counts[node] = 0
+		}
+
+		for i := 0; i < totalKeys; i++ {
+			key := fmt.Sprintf("key-%d", i)
+			node := hash.Get(key)
+			counts[node]++
+		}
+		return counts
+	}
+
+	spread := func(counts map[string]int) int {
+		minCount, maxCount := totalKeys, 0
+		for _, node := range nodes {
+			if counts[node] < minCount {
+				minCount = counts[node]
+			}
+			if counts[node] > maxCount {
+				maxCount = counts[node]
+			}
+		}
+		return maxCount - minCount
+	}
+
+	countsWithoutReplicas := countFor(1)
+	countsWithReplicas := countFor(50)
+
+	for _, node := range nodes {
+		if countsWithReplicas[node] == 0 {
+			t.Fatalf("节点 %s 没有分配到任何 key，分布异常: %v", node, countsWithReplicas)
+		}
+	}
+
+	if got, want := spread(countsWithReplicas), spread(countsWithoutReplicas); got >= want {
+		t.Fatalf(
+			"虚拟节点没有改善分布: replicas=50 spread=%d, replicas=1 spread=%d, with=%v, without=%v",
+			got, want, countsWithReplicas, countsWithoutReplicas,
+		)
 	}
 }
