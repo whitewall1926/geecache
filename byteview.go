@@ -1,12 +1,11 @@
 package geecache
 
-
 type ByteView struct {
 	b []byte
 }
 
 type Getter interface {
-	Get(key string) ([]byte, error) 
+	Get(key string) ([]byte, error)
 }
 
 type GetterFunc func(key string) ([]byte, error)

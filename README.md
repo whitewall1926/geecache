@@ -24,7 +24,7 @@
 
 对应代码：
 
-- [geecache.go](/home/yxf/geecache/geecache.go:68)
+- [geecached.go](/home/yxf/geecache/geecache.go:68)
 - [http.go](/home/yxf/geecache/http.go:55)
 - [consistenthash/consistenthash.go](/home/yxf/geecache/consistenthash/consistenthash.go:38)
 - [singleflight/singleflight.go](/home/yxf/geecache/singleflight/singleflight.go:22)

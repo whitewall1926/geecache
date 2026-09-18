@@ -1,25 +1,25 @@
 package geecache
 
 import (
-    "fmt"
-    "testing"
+	"fmt"
+	"testing"
 )
 
 // 模拟的底层数据库
 var db = map[string]string{
-    "Tom":  "630",
-    "Jack": "589",
-    "Sam":  "567",
+	"Tom":  "630",
+	"Jack": "589",
+	"Sam":  "567",
 }
 
 type mockGetter struct {
 	called int
 }
 
-func (c *mockGetter)Get(key string) ([]byte, error) {
-	c.called ++
+func (c *mockGetter) Get(key string) ([]byte, error) {
+	c.called++
 	fmt.Printf("第%v次 从数据库中调用的\n", c.called)
-	
+
 	v, ok := db[key]
 	if ok {
 		return []byte(v), nil
@@ -38,15 +38,16 @@ func TestGet(t *testing.T) {
 	if str != "630" {
 		t.Fatalf("期望通过，但是没有通过")
 	}
-	
+
 	nbytes, _ := group.Get("Tom")
 	new_str := nbytes.String()
 	if new_str != "630" {
 		t.Fatalf("期望通过，但是失败了")
 	}
 
-	 group.Get("Jack")
-
-	  group.Get("Tom")
-	  group.Get("Jack")
+	for _, key := range []string{"Jack", "Tom", "Jack"} {
+		if _, err := group.Get(key); err != nil {
+			t.Fatalf("期望成功的，但是报错了%v", err)
+		}
+	}
 }

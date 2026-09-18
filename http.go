@@ -1,13 +1,13 @@
 package geecache
 
 import (
+	"bytes"
 	"fmt"
 	"geecache/consistenthash"
 	"geecache/geecachepb"
 	"io"
 	"log"
 	"net/http"
-	"bytes"
 	"strings"
 	"sync"
 
@@ -65,16 +65,15 @@ func (p *HTTPPool) PickPeer(key string) (PeerGetter, bool) {
 	return nil, false
 }
 
-func (p *httpGetter) Get (group string, key string) ([]byte, error) {
-	req := geecachepb.Request {
+func (p *httpGetter) Get(group string, key string) ([]byte, error) {
+	req := geecachepb.Request{
 		Group: group,
-		Key: key,
+		Key:   key,
 	}
 	marsh_req, _ := proto.Marshal(&req)
 	path := p.baseURL
 	resp, err := http.Post(path, "byte", bytes.NewReader(marsh_req))
-	
-	
+
 	if err != nil {
 		return nil, err
 	}
@@ -84,9 +83,14 @@ func (p *httpGetter) Get (group string, key string) ([]byte, error) {
 		return nil, fmt.Errorf("server returned: %v", resp.Status)
 	}
 	bytes, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
 
 	var respMsg geecachepb.Response
-	proto.Unmarshal(bytes, &respMsg)
+	if err := proto.Unmarshal(bytes, &respMsg); err != nil {
+		return nil, err
+	}
 	return respMsg.GetValue(), nil
 }
 
@@ -95,13 +99,18 @@ func (p *HTTPPool) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		panic("HTTPPool serving unexpected path: " + r.URL.Path)
 	}
-	bytes , err := io.ReadAll(r.Body)
+	bytes, err := io.ReadAll(r.Body)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
 	var reqMsg geecachepb.Request
-	proto.Unmarshal(bytes, &reqMsg)
-
+	if err := proto.Unmarshal(bytes, &reqMsg); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
 
 	groupName, key := reqMsg.GetGroup(), reqMsg.GetKey()
-
 
 	group := GetGroup(groupName)
 	if group == nil {
@@ -117,7 +126,13 @@ func (p *HTTPPool) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	var valueMsg geecachepb.Response
 	valueMsg.Value = view.ByteSlice()
-	
-	marshValue, _ := proto.Marshal(&valueMsg)
-	w.Write(marshValue)
+
+	marshValue, err := proto.Marshal(&valueMsg)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	if _, err := w.Write(marshValue); err != nil {
+		return
+	}
 }

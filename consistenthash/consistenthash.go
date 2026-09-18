@@ -13,14 +13,14 @@ type Map struct {
 	hashMap  map[int]string           // 你的 real_nodes
 }
 
-func New(replicas int , fn func(data []byte) uint32) *Map {
+func New(replicas int, fn func(data []byte) uint32) *Map {
 	if fn == nil {
 		fn = crc32.ChecksumIEEE
 	}
-	return  &Map{
-		hash: fn,
+	return &Map{
+		hash:     fn,
 		replicas: replicas,
-		hashMap: make(map[int]string),
+		hashMap:  make(map[int]string),
 	}
 }
 
@@ -50,7 +50,7 @@ func (m *Map) Get(key string) string {
 			l = mid + 1
 		}
 	}
-	if l == len(m.keys){
+	if l == len(m.keys) {
 		return m.hashMap[m.keys[0]]
 	}
 	return m.hashMap[m.keys[l]]

@@ -9,29 +9,28 @@ type Value interface {
 }
 
 type entry struct {
-	key string
+	key   string
 	value Value
 }
 
 type Cache struct {
-	maxBytes int64
-	nBytes int64
-	ll *list.List
-	kv map[string]*list.Element
+	maxBytes  int64
+	nBytes    int64
+	ll        *list.List
+	kv        map[string]*list.Element
 	OnEvicted func(key string, value Value)
 }
 
-
 func New(maxBytes int64, onEvicted func(string, Value)) *Cache {
 	return &Cache{
-		maxBytes: maxBytes,
-		ll: list.New(),
-		kv: make(map[string]*list.Element),
+		maxBytes:  maxBytes,
+		ll:        list.New(),
+		kv:        make(map[string]*list.Element),
 		OnEvicted: onEvicted,
 	}
 }
 
-func (c *Cache) Get(key string)(value Value, ok bool) {
+func (c *Cache) Get(key string) (value Value, ok bool) {
 	ele, ok := c.kv[key]
 	if !ok {
 		return nil, false
@@ -41,31 +40,31 @@ func (c *Cache) Get(key string)(value Value, ok bool) {
 	return kvEntry.value, ok
 }
 
-func (c * Cache) Removeoldest() {
+func (c *Cache) Removeoldest() {
 	ele := c.ll.Back()
 	if ele == nil {
-		return 
+		return
 	}
 
 	kvEntry, ok := ele.Value.(*entry)
 	if !ok {
-		return 
+		return
 	}
 	c.nBytes -= int64(len(kvEntry.key)) + int64(kvEntry.value.Len())
-	
+
 	delete(c.kv, kvEntry.key)
 	c.ll.Remove(ele)
-	
+
 	if c.OnEvicted != nil {
 		c.OnEvicted(kvEntry.key, kvEntry.value)
 	}
 
 }
 
-func (c * Cache) Add(key string, value Value) {
+func (c *Cache) Add(key string, value Value) {
 
 	ele, ok := c.kv[key]
-	
+
 	if !ok {
 		node := &entry{key: key, value: value}
 		c.ll.PushFront(node)
@@ -79,7 +78,7 @@ func (c * Cache) Add(key string, value Value) {
 		c.nBytes += int64(kvEntry.value.Len())
 	}
 
-	for c.ll.Back() != nil && c.maxBytes != 0 &&  c.nBytes > c.maxBytes {
-			c.Removeoldest()
-		}
+	for c.ll.Back() != nil && c.maxBytes != 0 && c.nBytes > c.maxBytes {
+		c.Removeoldest()
+	}
 }
