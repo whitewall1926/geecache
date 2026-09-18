@@ -19,9 +19,6 @@ jobs:
         with:
           fetch-depth: 2
 
-      - name: Test failure
-        run: exit 1
-
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
