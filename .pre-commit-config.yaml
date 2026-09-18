@@ -1,42 +1,75 @@
 repos:
-  - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v5.0.0
-    hooks:
-      - id: trailing-whitespace
-      - id: end-of-file-fixer
-      - id: check-yaml
 
-  - repo: local
-    hooks:
-      - id: gofmt
-        name: gofmt
-        entry: gofmt
-        language: system
-        types: [go]
-        args: [-w]
-      - id: go-vet
-        name: go vet
-        entry: go vet ./...
-        language: system
-        pass_filenames: false
-      - id: golangci-lint
-        name: golangci-lint
-        entry: golangci-lint run
-        language: system
-        pass_filenames: false
-      - id: go-test
-        name: go test
-        entry: go test ./...
-        language: system
-        pass_filenames: false
-      - id: go-coverage
-        name: go test coverage
-        entry: bash .githooks/check-coverage.sh
-        language: system
-        pass_filenames: false
+# 基础文件检查
+- repo: https://github.com/pre-commit/pre-commit-hooks
+  rev: v5.0.0
+  hooks:
+    - id: trailing-whitespace
+    - id: end-of-file-fixer
+    - id: check-yaml
 
-      - id: commit-msg
-        name: check commit message
-        entry: bash .githooks/check-commit-msg.sh
-        language: system
-        stages: [commit-msg]
+
+# Go 工具链
+- repo: local
+  hooks:
+
+    # gofmt 格式化
+    - id: gofmt
+      name: gofmt
+      entry: gofmt
+      language: system
+      types: [go]
+      args: [-w]
+
+
+    # Go 静态检查
+    - id: go-vet
+      name: go vet
+      entry: go vet ./...
+      language: system
+      pass_filenames: false
+
+
+    # 综合 lint
+    - id: golangci-lint
+      name: golangci-lint
+      entry: golangci-lint run
+      language: system
+      pass_filenames: false
+
+
+    # Semgrep 安全扫描
+    - id: semgrep
+      name: semgrep security scan
+      entry: semgrep
+      language: system
+      pass_filenames: false
+      args:
+        - --config
+        - p/golang
+        - --config
+        - p/security-audit
+
+
+    # 单元测试
+    - id: go-test
+      name: go test
+      entry: go test ./...
+      language: system
+      pass_filenames: false
+
+
+    # 覆盖率检查
+    - id: go-coverage
+      name: go test coverage
+      entry: bash .githooks/check-coverage.sh
+      language: system
+      pass_filenames: false
+
+
+    # commit message 检查
+    - id: commit-msg
+      name: check commit message
+      entry: bash .githooks/check-commit-msg.sh
+      language: system
+      stages: [commit-msg]
