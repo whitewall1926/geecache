@@ -25,19 +25,34 @@ jobs:
         with:
           go-version-file: go.mod
           cache: true
+
+
       - name: Check formatting
         run: test -z "$(gofmt -l .)"
 
+
       - name: Run go vet
         run: go vet ./...
+
 
       - name: Run golangci-lint
         uses: golangci/golangci-lint-action@v6
         with:
           version: v1.64
 
+
+      # 新增 Semgrep 安全扫描
+      - name: Run Semgrep
+        uses: semgrep/semgrep-action@v1
+        with:
+          config: |
+            p/golang
+            p/security-audit
+
+
       - name: Run tests with coverage
         run: go test ./... -coverprofile=coverage.out
+
 
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v5
