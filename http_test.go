@@ -54,3 +54,42 @@ func TestHTTPPool_ServeHTTP(t *testing.T) {
 		t.Fatalf("期望命中 Tom=630，获得一个错误的值Tom=%v", got)
 	}
 }
+
+func TestHTTPPoolServeHTTPRejectsInvalidRequest(t *testing.T) {
+	pool := NewHTTPPool("http://localhost:8000")
+	req := httptest.NewRequest("POST", "http://localhost:8000/_geecache/", bytes.NewReader([]byte("invalid")))
+	w := httptest.NewRecorder()
+
+	pool.ServeHTTP(w, req)
+
+	if w.Code != http.StatusBadRequest {
+		t.Fatalf("expected status %d, got %d", http.StatusBadRequest, w.Code)
+	}
+}
+
+func TestHTTPPoolServeHTTPRejectsUnknownGroup(t *testing.T) {
+	request, err := proto.Marshal(&geecachepb.Request{Group: "missing", Key: "key"})
+	if err != nil {
+		t.Fatalf("serialize request: %v", err)
+	}
+	req := httptest.NewRequest("POST", "http://localhost:8000/_geecache/", bytes.NewReader(request))
+	w := httptest.NewRecorder()
+
+	NewHTTPPool("http://localhost:8000").ServeHTTP(w, req)
+
+	if w.Code != http.StatusBadRequest {
+		t.Fatalf("expected status %d, got %d", http.StatusBadRequest, w.Code)
+	}
+}
+
+func TestHTTPGetterRejectsNonOKResponse(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		http.Error(w, "unavailable", http.StatusServiceUnavailable)
+	}))
+	defer server.Close()
+
+	getter := &httpGetter{baseURL: server.URL}
+	if _, err := getter.Get("group", "key"); err == nil {
+		t.Fatal("expected an error for a non-200 response")
+	}
+}

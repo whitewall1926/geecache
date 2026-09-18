@@ -51,3 +51,94 @@ func TestGet(t *testing.T) {
 		}
 	}
 }
+
+func TestGroupGetRejectsEmptyKey(t *testing.T) {
+	getterCalls := 0
+	group := NewGroup("empty-key", 50, GetterFunc(func(string) ([]byte, error) {
+		getterCalls++
+		return []byte("value"), nil
+	}))
+
+	if _, err := group.Get(""); err == nil {
+		t.Fatal("expected an error for an empty key")
+	}
+	if getterCalls != 0 {
+		t.Fatalf("getter should not be called for an empty key, got %d calls", getterCalls)
+	}
+}
+
+func TestGroupGetDoesNotCacheGetterError(t *testing.T) {
+	getterCalls := 0
+	group := NewGroup("getter-error", 50, GetterFunc(func(string) ([]byte, error) {
+		getterCalls++
+		return nil, fmt.Errorf("backend unavailable")
+	}))
+
+	for i := 0; i < 2; i++ {
+		if _, err := group.Get("key"); err == nil {
+			t.Fatal("expected getter error")
+		}
+	}
+	if getterCalls != 2 {
+		t.Fatalf("failed values should not be cached, got %d getter calls", getterCalls)
+	}
+}
+
+type testPeerPicker struct {
+	peer PeerGetter
+	ok   bool
+}
+
+func (p *testPeerPicker) PickPeer(string) (PeerGetter, bool) {
+	return p.peer, p.ok
+}
+
+type testPeerGetter struct {
+	value []byte
+	err   error
+}
+
+func (p *testPeerGetter) Get(string, string) ([]byte, error) {
+	return p.value, p.err
+}
+
+func TestGroupGetFromPeer(t *testing.T) {
+	getterCalls := 0
+	group := NewGroup("peer-success", 50, GetterFunc(func(string) ([]byte, error) {
+		getterCalls++
+		return []byte("local"), nil
+	}))
+	group.RegisterPeers(&testPeerPicker{
+		peer: &testPeerGetter{value: []byte("remote")},
+		ok:   true,
+	})
+
+	value, err := group.Get("key")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if got := value.String(); got != "remote" {
+		t.Fatalf("expected remote value, got %q", got)
+	}
+	if getterCalls != 0 {
+		t.Fatalf("local getter should not be called, got %d calls", getterCalls)
+	}
+}
+
+func TestGroupGetFallsBackToLocalOnPeerError(t *testing.T) {
+	group := NewGroup("peer-error", 50, GetterFunc(func(string) ([]byte, error) {
+		return []byte("local"), nil
+	}))
+	group.RegisterPeers(&testPeerPicker{
+		peer: &testPeerGetter{err: fmt.Errorf("peer unavailable")},
+		ok:   true,
+	})
+
+	value, err := group.Get("key")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if got := value.String(); got != "local" {
+		t.Fatalf("expected local fallback value, got %q", got)
+	}
+}
