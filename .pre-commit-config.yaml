@@ -29,6 +29,11 @@ repos:
         entry: go test ./...
         language: system
         pass_filenames: false
+      - id: go-coverage
+        name: go test coverage
+        entry: bash .githooks/check-coverage.sh
+        language: system
+        pass_filenames: false
 
       - id: commit-msg
         name: check commit message
