@@ -1,0 +1,7 @@
+rules:
+  - id: go-exec-command
+    languages:
+      - go
+    message: Avoid unsafe command execution
+    severity: WARNING
+    pattern: exec.Command(...)
